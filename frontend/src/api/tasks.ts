@@ -113,3 +113,42 @@ export const suggestTagsWithAI = async (request: SuggestTagsRequest): Promise<st
   
   return data.tags || [];
 };
+
+/**
+ * 调用 AI Agent 生成任务摘要
+ */
+export interface GenerateSummaryRequest {
+  tasks: Task[];
+  period?: 'daily' | 'weekly';
+}
+
+export interface GenerateSummaryResponse {
+  success: boolean;
+  summary?: string;
+  error?: string;
+}
+
+export const generateSummaryWithAI = async (request: GenerateSummaryRequest): Promise<string> => {
+  const response = await fetch(`${AI_AGENT_BASE_URL}/api/generate-summary`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      tasks: request.tasks,
+      period: request.period || 'daily',
+    }),
+  });
+  
+  if (!response.ok) {
+    throw new Error(`AI Agent request failed: ${response.status}`);
+  }
+  
+  const data: GenerateSummaryResponse = await response.json();
+  
+  if (!data.success) {
+    throw new Error(data.error || 'AI summary generation failed');
+  }
+  
+  return data.summary || '';
+};

@@ -1,8 +1,4 @@
 #!/usr/bin/env python3
-"""
-AI 标签建议模块
-基于任务标题和描述，从后端已有标签中推荐相关标签，必要时创建新标签
-"""
 import json
 import os
 import requests
@@ -37,7 +33,6 @@ def fetch_existing_tags() -> List[str]:
 
 
 def get_system_prompt(existing_tags: List[str]) -> str:
-    """构建 AI 系统提示词"""
     tags_list = ", ".join(f'"{tag}"' for tag in existing_tags) if existing_tags else "暂无已有标签"
     
     return f"""You are an expert task tagging assistant for a task management system.
@@ -102,26 +97,16 @@ Output: {{"tags": ["docs", "api", "backend", "writing"]}}
 
 
 def suggest_tags_with_ai(title: str, description: str = None) -> List[str]:
-    """
-    使用 AI 根据标题和描述推荐标签
-    
-    Args:
-        title: 任务标题
-        description: 任务描述（可选）
-    
-    Returns:
-        推荐的标签列表
-    """
     try:
-        # 获取后端现有标签
+        # Get existing tags from backend
         existing_tags = fetch_existing_tags()
         
-        # 构建用户输入
+        # Build user input
         user_input = f"Title: {title}"
         if description:
             user_input += f"\nDescription: {description}"
         
-        # 调用 AI
+        # Call AI
         completion = client.chat.completions.create(
             model="qwen-flash-2025-07-28",
             messages=[
@@ -134,43 +119,43 @@ def suggest_tags_with_ai(title: str, description: str = None) -> List[str]:
         
         ai_response = completion.choices[0].message.content.strip()
         
-        # 清理 markdown 代码块
+        # Clean markdown code blocks
         if "```json" in ai_response:
             ai_response = ai_response.split("```json")[1].split("```")[0].strip()
         elif "```" in ai_response:
             ai_response = ai_response.split("```")[1].split("```")[0].strip()
         
-        # 解析 JSON
+        # Parse JSON
         result = json.loads(ai_response)
         tags = result.get("tags", [])
         
-        # 验证和清理标签
+        # Validate and clean tags
         cleaned_tags = []
         for tag in tags:
             if not tag or not isinstance(tag, str):
                 continue
             
-            # 清理标签
+            # Clean tags
             tag = tag.strip().lower()
             
-            # 移除特殊字符（保留连字符、中文、字母、数字）
+            # Remove special chars (keep hyphens, alnum, Chinese)
             tag = ''.join(c for c in tag if c.isalnum() or c == '-' or c == '_' or '\u4e00' <= c <= '\u9fff')
             
-            # 跳过空标签或过长标签
+            # Skip empty or too long tags
             if not tag or len(tag) > 20:
                 continue
             
-            # 跳过重复标签
+            # Skip duplicate tags
             if tag in cleaned_tags:
                 continue
             
             cleaned_tags.append(tag)
         
-        # 确保返回 3-6 个标签
+            # Ensure returning 3-6 tags
         cleaned_tags = cleaned_tags[:6]
         
         if len(cleaned_tags) < 3:
-            # 如果标签太少，添加一些通用标签
+            # Add generic tags if too few
             existing_tags = fetch_existing_tags()
             if existing_tags and len(cleaned_tags) < 3:
                 for etag in existing_tags[:3]:
@@ -188,7 +173,6 @@ def suggest_tags_with_ai(title: str, description: str = None) -> List[str]:
 
 
 def main():
-    """命令行测试入口"""
     import sys
     
     if len(sys.argv) < 2:

@@ -3,13 +3,15 @@ import { Task } from '../../types';
 import { Skeleton } from '../components/ui/skeleton';
 import { Button } from '../components/ui/button';
 import { useTasks } from '../../hooks/useTasks';
-import { Clock, RefreshCw, Calendar, CheckCircle2, Circle } from 'lucide-react';
+import { Clock, RefreshCw, Calendar, CheckCircle2, Circle, Sparkles } from 'lucide-react';
 import { format, isToday, parseISO, getHours, getMinutes } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
 import { Popover, PopoverContent, PopoverTrigger } from '../components/ui/popover';
 import { Badge } from '../components/ui/badge';
 import { ScrollArea } from '../components/ui/scroll-area';
 import { cn } from '../components/ui/utils';
+import { generateSummaryWithAI } from '../../api/tasks';
+import { Alert, AlertDescription } from '../components/ui/alert';
 
 interface MyDayViewProps {
   onTaskClick: (task: Task) => void;
@@ -19,6 +21,11 @@ export function MyDayView({ onTaskClick }: MyDayViewProps) {
   const today = new Date();
   // 当前时间线指示器
   const [currentTime, setCurrentTime] = useState(new Date());
+  
+  // AI 摘要状态
+  const [dailySummary, setDailySummary] = useState<string | null>(null);
+  const [summaryLoading, setSummaryLoading] = useState(false);
+  const [summaryError, setSummaryError] = useState<string | null>(null);
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 60000);
@@ -56,6 +63,36 @@ export function MyDayView({ onTaskClick }: MyDayViewProps) {
     }
     return false; // 只显示有具体时间的任务
   });
+  
+  // 生成每日摘要
+  const handleGenerateSummary = async () => {
+    if (todayTasks.length === 0) {
+      setDailySummary("No tasks today. Consider creating some tasks to plan your day.");
+      return;
+    }
+    
+    setSummaryLoading(true);
+    setSummaryError(null);
+    
+    try {
+      const summary = await generateSummaryWithAI({
+        tasks: todayTasks,
+        period: 'daily',
+      });
+      setDailySummary(summary);
+    } catch (error) {
+      setSummaryError((error as Error).message || '生成摘要失败');
+    } finally {
+      setSummaryLoading(false);
+    }
+  };
+  
+  // 自动生成摘要（当任务加载完成后）
+  useEffect(() => {
+    if (!isLoading && todayTasks.length > 0 && !dailySummary && !summaryLoading) {
+      handleGenerateSummary();
+    }
+  }, [isLoading, todayTasks.length]);
   
   // 全天任务（没有具体时间但标记为今天的，或者只有日期没有时间的）
   // 这里简化处理：如果有 dueAt 就算是具体时间任务。
@@ -101,6 +138,66 @@ export function MyDayView({ onTaskClick }: MyDayViewProps) {
              </span>
              <span className="text-slate-400 text-sm ml-2">tasks</span>
           </div>
+        </div>
+        
+        {/* AI 每日概要 */}
+        <div className="mt-4">
+          {summaryLoading ? (
+            <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-950/20 dark:to-purple-950/20 p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <Sparkles className="h-4 w-4 text-indigo-600 animate-pulse" />
+                <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Generating daily summary...</span>
+              </div>
+              <Skeleton className="h-16 w-full" />
+            </div>
+          ) : summaryError ? (
+            <Alert variant="destructive" className="border-red-200 bg-red-50 dark:bg-red-950/20">
+              <AlertDescription className="text-sm">
+                {summaryError}
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={handleGenerateSummary}
+                  className="ml-2 h-6 text-xs"
+                >
+                  Retry
+                </Button>
+              </AlertDescription>
+            </Alert>
+          ) : dailySummary ? (
+            <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-950/20 dark:to-purple-950/20 p-4">
+              <div className="flex items-start justify-between gap-2 mb-2">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="h-4 w-4 text-indigo-600 shrink-0" />
+                  <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Daily Summary</span>
+                </div>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={handleGenerateSummary}
+                  className="h-6 text-xs shrink-0"
+                >
+                  <RefreshCw className="h-3 w-3 mr-1" />
+                  Refresh
+                </Button>
+              </div>
+              <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
+                {dailySummary}
+              </p>
+            </div>
+          ) : (
+            todayTasks.length > 0 && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleGenerateSummary}
+                className="w-full border-dashed"
+              >
+                  <Sparkles className="h-3.5 w-3.5 mr-2" />
+                Generate Daily Summary
+              </Button>
+            )
+          )}
         </div>
       </div>
 

@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Task, Status, Priority, TaskQueryParams } from '../../types';
 import { TaskRow } from '../components/tasks/TaskRow';
 import { Button } from '../components/ui/button';
 import { Skeleton } from '../components/ui/skeleton';
-import { ArrowUpDown, Filter, ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react';
+import { ArrowUpDown, Filter, ChevronLeft, ChevronRight, RefreshCw, Sparkles } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -13,6 +13,8 @@ import {
   DropdownMenuTrigger,
 } from '../components/ui/dropdown-menu';
 import { useTasks, useCompleteTask, useDeleteTask } from '../../hooks/useTasks';
+import { generateSummaryWithAI } from '../../api/tasks';
+import { Alert, AlertDescription } from '../components/ui/alert';
 
 interface TaskListViewProps {
   onTaskClick: (task: Task) => void;
@@ -30,6 +32,11 @@ export function TaskListView({ onTaskClick, selectedTag }: TaskListViewProps) {
   // 本地 UI 筛选状态
   const [statusFilter, setStatusFilter] = useState<Status | undefined>();
   const [priorityFilter, setPriorityFilter] = useState<Priority | undefined>();
+  
+  // AI 摘要状态
+  const [weeklySummary, setWeeklySummary] = useState<string | null>(null);
+  const [summaryLoading, setSummaryLoading] = useState(false);
+  const [summaryError, setSummaryError] = useState<string | null>(null);
 
   // 获取任务列表
   const { data, isLoading, isError, error, refetch } = useTasks({
@@ -70,6 +77,39 @@ export function TaskListView({ onTaskClick, selectedTag }: TaskListViewProps) {
       deleteTaskMutation.mutate(task.id);
     }
   };
+
+  // 生成每周摘要
+  const handleGenerateSummary = async () => {
+    const allTasks = data?.content || [];
+    
+    if (allTasks.length === 0) {
+      setWeeklySummary("No tasks this week. Consider creating some tasks to organize your work.");
+      return;
+    }
+    
+    setSummaryLoading(true);
+    setSummaryError(null);
+    
+    try {
+      const summary = await generateSummaryWithAI({
+        tasks: allTasks,
+        period: 'weekly',
+      });
+      setWeeklySummary(summary);
+    } catch (error) {
+      setSummaryError((error as Error).message || '生成摘要失败');
+    } finally {
+      setSummaryLoading(false);
+    }
+  };
+  
+  // 自动生成摘要（当任务加载完成后）
+  useEffect(() => {
+    const allTasks = data?.content || [];
+    if (!isLoading && allTasks.length > 0 && !weeklySummary && !summaryLoading && !selectedTag) {
+      handleGenerateSummary();
+    }
+  }, [isLoading, data?.content?.length, selectedTag]);
 
   // Loading skeleton
   if (isLoading) {
@@ -115,6 +155,68 @@ export function TaskListView({ onTaskClick, selectedTag }: TaskListViewProps) {
 
   return (
     <div className="space-y-4">
+      {/* AI 每周概要 - 仅在没有选中标签时显示 */}
+      {!selectedTag && (
+        <div className="mb-4">
+          {summaryLoading ? (
+            <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-950/20 dark:to-cyan-950/20 p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <Sparkles className="h-4 w-4 text-blue-600 animate-pulse" />
+                <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Generating weekly summary...</span>
+              </div>
+              <Skeleton className="h-16 w-full" />
+            </div>
+          ) : summaryError ? (
+            <Alert variant="destructive" className="border-red-200 bg-red-50 dark:bg-red-950/20">
+              <AlertDescription className="text-sm">
+                {summaryError}
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={handleGenerateSummary}
+                  className="ml-2 h-6 text-xs"
+                >
+                  Retry
+                </Button>
+              </AlertDescription>
+            </Alert>
+          ) : weeklySummary ? (
+            <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-950/20 dark:to-cyan-950/20 p-4">
+              <div className="flex items-start justify-between gap-2 mb-2">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="h-4 w-4 text-blue-600 shrink-0" />
+                  <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Weekly Summary</span>
+                </div>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={handleGenerateSummary}
+                  className="h-6 text-xs shrink-0"
+                >
+                  <RefreshCw className="h-3 w-3 mr-1" />
+                  Refresh
+                </Button>
+              </div>
+              <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
+                {weeklySummary}
+              </p>
+            </div>
+          ) : (
+            tasks.length > 0 && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleGenerateSummary}
+                className="w-full border-dashed"
+              >
+                <Sparkles className="h-3.5 w-3.5 mr-2" />
+                Generate Weekly Summary
+              </Button>
+            )
+          )}
+        </div>
+      )}
+      
       <div className="flex items-center justify-between pb-2">
         <h2 className="text-xl font-semibold tracking-tight">
           {selectedTag ? `Tag: ${selectedTag}` : 'Task List'} 
