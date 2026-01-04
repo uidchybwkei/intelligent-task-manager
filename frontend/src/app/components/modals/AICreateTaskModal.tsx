@@ -91,9 +91,11 @@ export function AICreateTaskModal({ open, onOpenChange }: AICreateTaskModalProps
         
         if (tagsResult.success && tagsResult.tags && tagsResult.tags.length > 0) {
           setAiSuggestedTags(tagsResult.tags);
-          // 自动选中 AI 推荐的标签（如果它们存在于可用标签中）
-          const validTags = tagsResult.tags.filter((tag: string) => 
-            availableTags.includes(tag)
+          // 自动选中 AI 推荐的标签（忽略大小写匹配）
+          const validTags = availableTags.filter((availableTag: string) => 
+            tagsResult.tags.some((aiTag: string) => 
+              aiTag.toLowerCase() === availableTag.toLowerCase()
+            )
           );
           setSelectedTags(validTags);
         }
@@ -270,7 +272,10 @@ export function AICreateTaskModal({ open, onOpenChange }: AICreateTaskModalProps
                 ) : (
                   availableTags.map(tag => {
                     const isSelected = selectedTags.includes(tag);
-                    const isAISuggested = aiSuggestedTags.includes(tag);
+                    // 忽略大小写匹配 AI 推荐的标签
+                    const isAISuggested = aiSuggestedTags.some(
+                      aiTag => aiTag.toLowerCase() === tag.toLowerCase()
+                    );
                     
                     return (
                       <Badge

@@ -9,10 +9,12 @@ import { Badge } from '../../components/ui/badge';
 import { ScrollArea } from '../../components/ui/scroll-area';
 import { Skeleton } from '../../components/ui/skeleton';
 import { Priority, Status } from '../../../types';
-import { useTask, useUpdateTask, useDeleteTask } from '../../../hooks/useTasks';
-import { getTagColor, getAvailableTags } from '../../../utils/tagHelpers';
+import { useTask, useUpdateTask, useDeleteTask, useTags } from '../../../hooks/useTasks';
+import { suggestTagsWithAI } from '../../../api/tasks';
+import { getTagColor } from '../../../utils/tagHelpers';
 import { format } from 'date-fns';
-import { Sparkles, Plus, X, Trash2, Tag as TagIcon } from 'lucide-react';
+import { Sparkles, Plus, X, Trash2, Tag as TagIcon, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 
 interface TaskDetailDrawerProps {
   taskId: number | null;
@@ -25,6 +27,9 @@ export function TaskDetailDrawer({ taskId, open, onOpenChange }: TaskDetailDrawe
   const { data: task, isLoading } = useTask(taskId);
   const updateTaskMutation = useUpdateTask();
   const deleteTaskMutation = useDeleteTask();
+  
+  // 从后端获取所有标签
+  const { data: allTags = [], isLoading: tagsLoading } = useTags();
 
   // 本地编辑状态
   const [title, setTitle] = useState('');
@@ -35,6 +40,7 @@ export function TaskDetailDrawer({ taskId, open, onOpenChange }: TaskDetailDrawe
   const [suggestedTags, setSuggestedTags] = useState<string[]>([]);
   const [newTagInput, setNewTagInput] = useState('');
   const [showTagInput, setShowTagInput] = useState(false);
+  const [isSuggestingTags, setIsSuggestingTags] = useState(false);
   const tagInputRef = useRef<HTMLInputElement>(null);
 
   // 同步 task 数据到本地状态
@@ -81,9 +87,39 @@ export function TaskDetailDrawer({ taskId, open, onOpenChange }: TaskDetailDrawe
     });
   };
 
-  const handleSuggestTags = () => {
-    const availableTags = getAvailableTags().filter(t => !tags.includes(t));
-    setSuggestedTags(availableTags.slice(0, 3));
+  const handleSuggestTags = async () => {
+    if (!title.trim()) {
+      toast.error('Please enter a title first');
+      return;
+    }
+    
+    setIsSuggestingTags(true);
+    setSuggestedTags([]);
+    
+    try {
+      // 调用 AI Agent 获取智能标签建议
+      const aiSuggestedTags = await suggestTagsWithAI({
+        title: title.trim(),
+        description: description.trim() || undefined,
+      });
+      
+      // 过滤掉当前任务已有的标签
+      const filteredTags = aiSuggestedTags.filter(t => !tags.includes(t));
+      setSuggestedTags(filteredTags.slice(0, 5));
+      
+      if (filteredTags.length === 0) {
+        toast.info('All suggested tags are already added');
+      }
+    } catch (error) {
+      console.error('AI tag suggestion failed:', error);
+      toast.error('Failed to get AI suggestions, please try again');
+      
+      // 降级到从后端已有标签中选择
+      const availableTags = allTags.filter(t => !tags.includes(t));
+      setSuggestedTags(availableTags.slice(0, 3));
+    } finally {
+      setIsSuggestingTags(false);
+    }
   };
 
   const addTag = (tag: string) => {
@@ -215,9 +251,15 @@ export function TaskDetailDrawer({ taskId, open, onOpenChange }: TaskDetailDrawe
                             size="sm" 
                             className="h-6 text-xs" 
                             onClick={handleSuggestTags}
+                            disabled={isSuggestingTags || !title.trim()}
+                            title={!title.trim() ? "Enter a title first" : "AI will suggest tags based on task content"}
                           >
-                            <Sparkles className="h-3 w-3 mr-1" />
-                            Suggest
+                            {isSuggestingTags ? (
+                              <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                            ) : (
+                              <Sparkles className="h-3 w-3 mr-1" />
+                            )}
+                            {isSuggestingTags ? 'Suggesting...' : 'AI Suggest'}
                           </Button>
                           <Button 
                             variant="ghost" 

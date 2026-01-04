@@ -74,3 +74,42 @@ export const createTag = async (name: string): Promise<void> => {
 export const deleteTag = async (name: string): Promise<void> => {
   await apiClient.delete(`${TASKS_BASE}/tags/${encodeURIComponent(name)}`);
 };
+
+// AI Agent API（端口8001）
+const AI_AGENT_BASE_URL = (import.meta as any).env?.VITE_AI_AGENT_URL || 'http://localhost:8001';
+
+/**
+ * 调用 AI Agent 推荐标签
+ */
+export interface SuggestTagsRequest {
+  title: string;
+  description?: string;
+}
+
+export interface SuggestTagsResponse {
+  success: boolean;
+  tags?: string[];
+  error?: string;
+}
+
+export const suggestTagsWithAI = async (request: SuggestTagsRequest): Promise<string[]> => {
+  const response = await fetch(`${AI_AGENT_BASE_URL}/api/suggest-tags`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(request),
+  });
+  
+  if (!response.ok) {
+    throw new Error(`AI Agent request failed: ${response.status}`);
+  }
+  
+  const data: SuggestTagsResponse = await response.json();
+  
+  if (!data.success) {
+    throw new Error(data.error || 'AI tag suggestion failed');
+  }
+  
+  return data.tags || [];
+};
