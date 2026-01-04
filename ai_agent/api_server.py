@@ -7,6 +7,7 @@ import uvicorn
 from ai_new_task import parse_task_with_ai
 from ai_tag_suggest import suggest_tags_with_ai
 from ai_summary import generate_summary
+from ai_similar_tasks import find_similar_tasks
 
 app = FastAPI(title="AI Task Parser API", version="1.0.0")
 
@@ -58,6 +59,22 @@ class GenerateSummaryResponse(BaseModel):
     error: Optional[str] = None
 
 
+class FindSimilarTasksRequest(BaseModel):
+    target_task: Dict[str, Any]
+    all_tasks: List[Dict[str, Any]]
+
+
+class SimilarTask(BaseModel):
+    task_id: int
+    score: float
+
+
+class FindSimilarTasksResponse(BaseModel):
+    success: bool
+    similar_tasks: Optional[List[SimilarTask]] = None
+    error: Optional[str] = None
+
+
 @app.get("/")
 async def root():
     return {"service": "AI Task Parser API", "status": "running"}
@@ -102,6 +119,24 @@ async def generate_task_summary(request: GenerateSummaryRequest):
         return GenerateSummaryResponse(success=False, error=str(e))
 
 
+@app.post("/api/find-similar-tasks", response_model=FindSimilarTasksResponse)
+async def find_similar(request: FindSimilarTasksRequest):
+    if not isinstance(request.target_task, dict):
+        raise HTTPException(status_code=400, detail="Target task must be a dict")
+    
+    if not isinstance(request.all_tasks, list):
+        raise HTTPException(status_code=400, detail="All tasks must be a list")
+
+    try:
+        similar = find_similar_tasks(request.target_task, request.all_tasks)
+        return FindSimilarTasksResponse(
+            success=True, 
+            similar_tasks=[SimilarTask(**task) for task in similar]
+        )
+    except Exception as e:
+        return FindSimilarTasksResponse(success=False, error=str(e))
+
+
 if __name__ == "__main__":
     print("🚀 Starting AI Task Parser API on http://localhost:8001")
     print("📍 API docs: http://localhost:8001/docs")
@@ -109,4 +144,5 @@ if __name__ == "__main__":
     print("   - POST /api/parse-task: Parse natural language to task")
     print("   - POST /api/suggest-tags: AI tag suggestions")
     print("   - POST /api/generate-summary: Generate task summary (daily/weekly)")
+    print("   - POST /api/find-similar-tasks: Find similar tasks")
     uvicorn.run(app, host="0.0.0.0", port=8001, log_level="info")

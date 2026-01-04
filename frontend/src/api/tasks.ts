@@ -152,3 +152,47 @@ export const generateSummaryWithAI = async (request: GenerateSummaryRequest): Pr
   
   return data.summary || '';
 };
+
+/**
+ * Find similar tasks
+ */
+export interface SimilarTask {
+  task_id: number;
+  score: number;
+}
+
+export interface FindSimilarTasksRequest {
+  target_task: Task;
+  all_tasks: Task[];
+}
+
+export interface FindSimilarTasksResponse {
+  success: boolean;
+  similar_tasks?: SimilarTask[];
+  error?: string;
+}
+
+export const findSimilarTasks = async (request: FindSimilarTasksRequest): Promise<SimilarTask[]> => {
+  const response = await fetch(`${AI_AGENT_BASE_URL}/api/find-similar-tasks`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      target_task: request.target_task,
+      all_tasks: request.all_tasks,
+    }),
+  });
+  
+  if (!response.ok) {
+    throw new Error(`AI Agent request failed: ${response.status}`);
+  }
+  
+  const data: FindSimilarTasksResponse = await response.json();
+  
+  if (!data.success) {
+    throw new Error(data.error || 'Find similar tasks failed');
+  }
+  
+  return data.similar_tasks || [];
+};

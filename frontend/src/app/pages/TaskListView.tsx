@@ -13,8 +13,9 @@ import {
   DropdownMenuTrigger,
 } from '../components/ui/dropdown-menu';
 import { useTasks, useCompleteTask, useDeleteTask } from '../../hooks/useTasks';
-import { generateSummaryWithAI } from '../../api/tasks';
+import { generateSummaryWithAI, findSimilarTasks, SimilarTask } from '../../api/tasks';
 import { Alert, AlertDescription } from '../components/ui/alert';
+import { Badge } from '../components/ui/badge';
 
 interface TaskListViewProps {
   onTaskClick: (task: Task) => void;
@@ -37,6 +38,11 @@ export function TaskListView({ onTaskClick, selectedTag }: TaskListViewProps) {
   const [weeklySummary, setWeeklySummary] = useState<string | null>(null);
   const [summaryLoading, setSummaryLoading] = useState(false);
   const [summaryError, setSummaryError] = useState<string | null>(null);
+
+  // 相似任务状态
+  const [similarTasks, setSimilarTasks] = useState<SimilarTask[]>([]);
+  const [similarLoading, setSimilarLoading] = useState(false);
+  const [targetTask, setTargetTask] = useState<Task | null>(null);
 
   // 获取任务列表
   const { data, isLoading, isError, error, refetch } = useTasks({
@@ -103,11 +109,47 @@ export function TaskListView({ onTaskClick, selectedTag }: TaskListViewProps) {
     }
   };
   
-  // 自动生成摘要（当任务加载完成后）
+  // Find similar tasks
+  const handleFindSimilar = async () => {
+    const allTasks = data?.content || [];
+    
+    if (allTasks.length < 2) {
+      return;
+    }
+    
+    // Use the latest uncompleted task as target
+    const uncompletedTasks = allTasks.filter(t => t.status !== 'COMPLETED');
+    const target = uncompletedTasks.length > 0 ? uncompletedTasks[0] : allTasks[0];
+    
+    setSimilarLoading(true);
+    setTargetTask(target);
+    
+    try {
+      const similar = await findSimilarTasks({
+        target_task: target,
+        all_tasks: allTasks,
+      });
+      setSimilarTasks(similar);
+    } catch (error) {
+      console.error('Find similar tasks failed:', error);
+      setSimilarTasks([]);
+    } finally {
+      setSimilarLoading(false);
+    }
+  };
+
+  // Auto generate summary and find similar tasks
   useEffect(() => {
     const allTasks = data?.content || [];
-    if (!isLoading && allTasks.length > 0 && !weeklySummary && !summaryLoading && !selectedTag) {
-      handleGenerateSummary();
+    if (!isLoading && allTasks.length > 0 && !selectedTag) {
+      // Generate summary
+      if (!weeklySummary && !summaryLoading) {
+        handleGenerateSummary();
+      }
+      // Find similar tasks
+      if (!targetTask && !similarLoading && allTasks.length >= 2) {
+        handleFindSimilar();
+      }
     }
   }, [isLoading, data?.content?.length, selectedTag]);
 
@@ -157,7 +199,7 @@ export function TaskListView({ onTaskClick, selectedTag }: TaskListViewProps) {
     <div className="space-y-4">
       {/* AI 每周概要 - 仅在没有选中标签时显示 */}
       {!selectedTag && (
-        <div className="mb-4">
+        <div className="mb-4 space-y-3">
           {summaryLoading ? (
             <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-950/20 dark:to-cyan-950/20 p-4">
               <div className="flex items-center gap-2 mb-2">
@@ -214,6 +256,63 @@ export function TaskListView({ onTaskClick, selectedTag }: TaskListViewProps) {
               </Button>
             )
           )}
+
+          {/* Similar Tasks Section */}
+          {similarLoading ? (
+            <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-950/20 dark:to-pink-950/20 p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <Sparkles className="h-4 w-4 text-purple-600 animate-pulse" />
+                <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Finding similar tasks...</span>
+              </div>
+              <Skeleton className="h-12 w-full" />
+            </div>
+          ) : similarTasks.length > 0 && targetTask ? (
+            <div className="rounded-lg border border-slate-200 dark:border-slate-800 bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-950/20 dark:to-pink-950/20 p-4">
+              <div className="flex items-start justify-between gap-2 mb-2">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="h-4 w-4 text-purple-600 shrink-0" />
+                  <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                    Similar to: "{targetTask.title}"
+                  </span>
+                </div>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={handleFindSimilar}
+                  className="h-6 text-xs shrink-0"
+                >
+                  <RefreshCw className="h-3 w-3 mr-1" />
+                  Refresh
+                </Button>
+              </div>
+              <div className="space-y-2">
+                {similarTasks.map((similar) => {
+                  const task = tasks.find(t => t.id === similar.task_id);
+                  if (!task) return null;
+                  
+                  return (
+                    <div
+                      key={similar.task_id}
+                      className="flex items-center justify-between gap-2 p-2 rounded bg-white/50 dark:bg-slate-900/50 hover:bg-white/80 dark:hover:bg-slate-900/80 cursor-pointer transition-colors"
+                      onClick={() => onTaskClick(task)}
+                    >
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm text-slate-700 dark:text-slate-300 truncate">
+                          {task.title}
+                        </p>
+                      </div>
+                      <Badge 
+                        variant="secondary"
+                        className="shrink-0 text-xs bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300"
+                      >
+                        {Math.round(similar.score * 100)}%
+                      </Badge>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ) : null}
         </div>
       )}
       
