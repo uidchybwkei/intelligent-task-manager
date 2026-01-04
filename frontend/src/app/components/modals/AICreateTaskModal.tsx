@@ -27,6 +27,7 @@ export function AICreateTaskModal({ open, onOpenChange }: AICreateTaskModalProps
   const [selectedDate, setSelectedDate] = useState('');
   const [selectedTime, setSelectedTime] = useState('');
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [aiSuggestedTags, setAiSuggestedTags] = useState<string[]>([]); // AI 推荐的标签
   
   const createTaskMutation = useCreateTask();
   const { data: availableTags = [] } = useTags();
@@ -40,6 +41,7 @@ export function AICreateTaskModal({ open, onOpenChange }: AICreateTaskModalProps
     setSelectedDate('');
     setSelectedTime('');
     setSelectedTags([]);
+    setAiSuggestedTags([]);
   };
 
   const parseWithAI = async () => {
@@ -50,19 +52,20 @@ export function AICreateTaskModal({ open, onOpenChange }: AICreateTaskModalProps
 
     setIsParsing(true);
     try {
-      const response = await fetch('http://localhost:8001/api/parse-task', {
+      // 解析任务
+      const parseResponse = await fetch('http://localhost:8001/api/parse-task', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ input: naturalInput.trim() }),
       });
 
-      const result = await response.json();
+      const parseResult = await parseResponse.json();
 
-      if (!result.success || !result.data) {
-        throw new Error(result.error || 'Parse failed');
+      if (!parseResult.success || !parseResult.data) {
+        throw new Error(parseResult.error || 'Parse failed');
       }
 
-      const parsed = result.data;
+      const parsed = parseResult.data;
       setTitle(parsed.title);
       setDescription(parsed.description || '');
       setPriority(parsed.priority || 'MEDIUM');
@@ -71,6 +74,32 @@ export function AICreateTaskModal({ open, onOpenChange }: AICreateTaskModalProps
         const date = new Date(parsed.due_at);
         setSelectedDate(date.toISOString().split('T')[0]);
         setSelectedTime(date.toTimeString().slice(0, 5));
+      }
+
+      // 获取 AI 标签建议
+      try {
+        const tagsResponse = await fetch('http://localhost:8001/api/suggest-tags', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            title: parsed.title,
+            description: parsed.description 
+          }),
+        });
+
+        const tagsResult = await tagsResponse.json();
+        
+        if (tagsResult.success && tagsResult.tags && tagsResult.tags.length > 0) {
+          setAiSuggestedTags(tagsResult.tags);
+          // 自动选中 AI 推荐的标签（如果它们存在于可用标签中）
+          const validTags = tagsResult.tags.filter((tag: string) => 
+            availableTags.includes(tag)
+          );
+          setSelectedTags(validTags);
+        }
+      } catch (tagError) {
+        console.warn('Tag suggestion failed:', tagError);
+        // 标签建议失败不影响主流程
       }
 
       setStep('confirm');
@@ -226,21 +255,41 @@ export function AICreateTaskModal({ open, onOpenChange }: AICreateTaskModalProps
             </div>
 
             <div className="space-y-2">
-              <Label>Tags</Label>
+              <Label className="flex items-center gap-2">
+                Tags
+                {aiSuggestedTags.length > 0 && (
+                  <span className="text-xs text-indigo-600 dark:text-indigo-400 flex items-center gap-1">
+                    <Sparkles className="h-3 w-3" />
+                    AI suggested in purple
+                  </span>
+                )}
+              </Label>
               <div className="flex flex-wrap gap-2 p-3 bg-slate-50 dark:bg-slate-900/50 rounded-lg border border-slate-200 dark:border-slate-800 min-h-[48px]">
                 {availableTags.length === 0 ? (
                   <span className="text-sm text-slate-400">No tags available</span>
                 ) : (
-                  availableTags.map(tag => (
-                    <Badge
-                      key={tag}
-                      variant={selectedTags.includes(tag) ? "default" : "outline"}
-                      className="cursor-pointer hover:opacity-80 transition-opacity"
-                      onClick={() => toggleTag(tag)}
-                    >
-                      {tag}
-                    </Badge>
-                  ))
+                  availableTags.map(tag => {
+                    const isSelected = selectedTags.includes(tag);
+                    const isAISuggested = aiSuggestedTags.includes(tag);
+                    
+                    return (
+                      <Badge
+                        key={tag}
+                        variant={isSelected ? "default" : "outline"}
+                        className={`cursor-pointer hover:opacity-80 transition-all ${
+                          isAISuggested
+                            ? isSelected
+                              ? 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 border-indigo-600 text-white shadow-sm'
+                              : 'border-indigo-400 text-indigo-700 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/30 hover:bg-indigo-100 dark:hover:bg-indigo-950/50'
+                            : ''
+                        }`}
+                        onClick={() => toggleTag(tag)}
+                      >
+                        {isAISuggested && <Sparkles className="h-3 w-3 mr-1" />}
+                        {tag}
+                      </Badge>
+                    );
+                  })
                 )}
               </div>
             </div>
