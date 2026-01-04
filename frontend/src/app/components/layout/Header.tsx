@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Search, Plus, Sparkles, Menu, X } from 'lucide-react';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
@@ -27,6 +27,7 @@ export function Header({
   const [query, setQuery] = useState('');
   const [showResults, setShowResults] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
+  const debounceRef = useRef<NodeJS.Timeout | null>(null);
 
   // Close results when clicking outside
   useEffect(() => {
@@ -40,15 +41,27 @@ export function Header({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Trigger search when query changes
+  // Debounced search - wait 500ms after user stops typing
   useEffect(() => {
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+    }
+
     if (query.trim().length > 0) {
-      onSearch?.(query.trim());
       setShowResults(true);
+      debounceRef.current = setTimeout(() => {
+        onSearch?.(query.trim());
+      }, 500);
     } else {
       setShowResults(false);
     }
-  }, [query, onSearch]);
+
+    return () => {
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current);
+      }
+    };
+  }, [query]);
 
   const handleClear = () => {
     setQuery('');
@@ -88,18 +101,21 @@ export function Header({
 
           {/* Search Results Dropdown */}
           {showResults && (
-            <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg shadow-lg max-h-96 overflow-y-auto">
+            <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg shadow-lg max-h-96 overflow-y-auto z-50">
               {isSearching ? (
                 <div className="p-4 text-center text-sm text-slate-500">
-                  <Sparkles className="h-4 w-4 animate-pulse mx-auto mb-2" />
+                  <Sparkles className="h-4 w-4 animate-pulse mx-auto mb-2 text-blue-500" />
                   Searching with AI...
                 </div>
               ) : searchResults && searchResults.length > 0 ? (
                 <div className="py-2">
+                  <div className="px-3 py-1.5 text-xs text-slate-500 border-b border-slate-100 dark:border-slate-800">
+                    Found {searchResults.length} result(s)
+                  </div>
                   {searchResults.map(({ task, score }) => (
                     <div
                       key={task.id}
-                      className="px-4 py-2 hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer transition-colors"
+                      className="px-4 py-2.5 hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer transition-colors"
                       onClick={() => handleTaskClick(task)}
                     >
                       <div className="flex items-start justify-between gap-2">
@@ -123,11 +139,11 @@ export function Header({
                     </div>
                   ))}
                 </div>
-              ) : (
+              ) : !isSearching && query.trim() ? (
                 <div className="p-4 text-center text-sm text-slate-500">
-                  No results found
+                  No results found for "{query}"
                 </div>
-              )}
+              ) : null}
             </div>
           )}
         </div>

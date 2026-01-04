@@ -29,40 +29,20 @@ Rules:
 - Higher score = more relevant
 - Return all tasks with relevance score >= 0.2
 - Order by score descending
-
-Return STRICT JSON ONLY.
+- Output JSON only, no explanation, no extra text
 
 JSON schema:
-{
-  "results": [
-    {
-      "task_id": number,
-      "score": number
-    }
-  ]
-}
+{"results": [{"task_id": number, "score": number}]}
 
-Examples:
-
-Input:
+Example 1:
 Query: "login problems"
-Tasks: [
-  {"id": 1, "title": "Fix authentication bug", "description": "Users can't sign in"},
-  {"id": 2, "title": "Update homepage", "description": "New design"},
-  {"id": 3, "title": "Add OAuth support", "description": "Google login"}
-]
+Tasks: [{"id": 1, "title": "Fix authentication bug"}, {"id": 2, "title": "Update homepage"}]
+Output: {"results": [{"task_id": 1, "score": 0.95}]}
 
-Output: {"results": [{"task_id": 1, "score": 0.95}, {"task_id": 3, "score": 0.75}]}
-
-Input:
-Query: "performance optimization"
-Tasks: [
-  {"id": 5, "title": "Speed up database queries", "description": "Add indexes"},
-  {"id": 6, "title": "Write documentation", "description": "API docs"},
-  {"id": 7, "title": "Cache API responses", "description": "Use Redis"}
-]
-
-Output: {"results": [{"task_id": 5, "score": 0.88}, {"task_id": 7, "score": 0.82}]}
+Example 2:
+Query: "performance"
+Tasks: [{"id": 5, "title": "Speed up database"}, {"id": 6, "title": "Write docs"}]
+Output: {"results": [{"task_id": 5, "score": 0.88}]}
 """
 
 
@@ -107,6 +87,12 @@ Tasks:
             ai_response = ai_response.split("```json")[1].split("```")[0].strip()
         elif "```" in ai_response:
             ai_response = ai_response.split("```")[1].split("```")[0].strip()
+
+        # Extract JSON from response (handle extra text after JSON)
+        import re
+        json_match = re.search(r'\{.*\}', ai_response, re.DOTALL)
+        if json_match:
+            ai_response = json_match.group()
 
         # Parse JSON
         result = json.loads(ai_response)
