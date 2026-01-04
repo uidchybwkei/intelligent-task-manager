@@ -8,6 +8,7 @@ from ai_new_task import parse_task_with_ai
 from ai_tag_suggest import suggest_tags_with_ai
 from ai_summary import generate_summary
 from ai_similar_tasks import find_similar_tasks
+from ai_semantic_search import semantic_search
 
 app = FastAPI(title="AI Task Parser API", version="1.0.0")
 
@@ -75,6 +76,22 @@ class FindSimilarTasksResponse(BaseModel):
     error: Optional[str] = None
 
 
+class SemanticSearchRequest(BaseModel):
+    query: str
+    tasks: List[Dict[str, Any]]
+
+
+class SearchResult(BaseModel):
+    task_id: int
+    score: float
+
+
+class SemanticSearchResponse(BaseModel):
+    success: bool
+    results: Optional[List[SearchResult]] = None
+    error: Optional[str] = None
+
+
 @app.get("/")
 async def root():
     return {"service": "AI Task Parser API", "status": "running"}
@@ -137,6 +154,24 @@ async def find_similar(request: FindSimilarTasksRequest):
         return FindSimilarTasksResponse(success=False, error=str(e))
 
 
+@app.post("/api/semantic-search", response_model=SemanticSearchResponse)
+async def search_tasks(request: SemanticSearchRequest):
+    if not request.query or not request.query.strip():
+        raise HTTPException(status_code=400, detail="Query cannot be empty")
+    
+    if not isinstance(request.tasks, list):
+        raise HTTPException(status_code=400, detail="Tasks must be a list")
+
+    try:
+        results = semantic_search(request.query.strip(), request.tasks)
+        return SemanticSearchResponse(
+            success=True,
+            results=[SearchResult(**r) for r in results]
+        )
+    except Exception as e:
+        return SemanticSearchResponse(success=False, error=str(e))
+
+
 if __name__ == "__main__":
     print("🚀 Starting AI Task Parser API on http://localhost:8001")
     print("📍 API docs: http://localhost:8001/docs")
@@ -145,4 +180,5 @@ if __name__ == "__main__":
     print("   - POST /api/suggest-tags: AI tag suggestions")
     print("   - POST /api/generate-summary: Generate task summary (daily/weekly)")
     print("   - POST /api/find-similar-tasks: Find similar tasks")
+    print("   - POST /api/semantic-search: Semantic search tasks")
     uvicorn.run(app, host="0.0.0.0", port=8001, log_level="info")

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { DashboardLayout } from './components/layout/DashboardLayout';
 import { TaskListView } from './pages/TaskListView';
@@ -10,6 +10,8 @@ import { TaskDetailDrawer } from './components/drawers/TaskDetailDrawer';
 import { Task, ViewMode } from '../types';
 import { LayoutList, Kanban as KanbanIcon } from 'lucide-react';
 import { Toaster } from './components/ui/sonner';
+import { useTasks } from '../hooks/useTasks';
+import { semanticSearch } from '../api/tasks';
 
 // 创建 QueryClient 实例
 const queryClient = new QueryClient({
@@ -24,7 +26,7 @@ const queryClient = new QueryClient({
 // Simple router state
 type Page = 'dashboard' | 'myday';
 
-function App() {
+function AppContent() {
   const [currentPage, setCurrentPage] = useState<Page>('dashboard');
   const [viewMode, setViewMode] = useState<ViewMode>('list');
   
@@ -34,31 +36,70 @@ function App() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
 
+  // Search state
+  const [searchResults, setSearchResults] = useState<Array<{ task: Task; score: number }>>([]);
+  const [isSearching, setIsSearching] = useState(false);
+
+  // Get all tasks for search
+  const { data: tasksData } = useTasks({ page: 0, size: 1000 });
+  const allTasks = tasksData?.content || [];
+
   // Actions
   const handleTaskClick = (task: Task) => {
     setSelectedTaskId(task.id);
     setIsDetailOpen(true);
   };
 
+  // Handle search
+  const handleSearch = useCallback(async (query: string) => {
+    if (!query.trim() || allTasks.length === 0) {
+      setSearchResults([]);
+      return;
+    }
+
+    setIsSearching(true);
+    try {
+      const results = await semanticSearch({ query, tasks: allTasks });
+      
+      // Map results to tasks with scores
+      const mappedResults = results
+        .map(result => {
+          const task = allTasks.find(t => t.id === result.task_id);
+          return task ? { task, score: result.score } : null;
+        })
+        .filter((r): r is { task: Task; score: number } => r !== null);
+      
+      setSearchResults(mappedResults);
+    } catch (error) {
+      console.error('Search failed:', error);
+      setSearchResults([]);
+    } finally {
+      setIsSearching(false);
+    }
+  }, [allTasks]);
+
   return (
-    <QueryClientProvider client={queryClient}>
-      <DashboardLayout 
-        onAICreateClick={() => setIsAICreateOpen(true)}
-        onNewTaskClick={() => setIsCreateOpen(true)}
-        activePage={currentPage}
-        onNavigate={(page) => {
-          console.log('Navigating to:', page);
-          setCurrentPage(page as Page);
-        }}
-        selectedTag={selectedTag}
-        onTagSelect={(tag) => {
-          setSelectedTag(tag);
-          // 只有当选中具体标签时才跳转到 dashboard
-          if (tag) {
-            setCurrentPage('dashboard');
-          }
-        }}
-      >
+    <DashboardLayout 
+      onAICreateClick={() => setIsAICreateOpen(true)}
+      onNewTaskClick={() => setIsCreateOpen(true)}
+      activePage={currentPage}
+      onNavigate={(page) => {
+        console.log('Navigating to:', page);
+        setCurrentPage(page as Page);
+      }}
+      selectedTag={selectedTag}
+      onTagSelect={(tag) => {
+        setSelectedTag(tag);
+        // 只有当选中具体标签时才跳转到 dashboard
+        if (tag) {
+          setCurrentPage('dashboard');
+        }
+      }}
+      onSearch={handleSearch}
+      searchResults={searchResults}
+      onTaskClick={handleTaskClick}
+      isSearching={isSearching}
+    >
         {/* View Switcher & Page Title area */}
         {currentPage === 'dashboard' && (
           <div className="flex flex-col h-full">
@@ -121,7 +162,14 @@ function App() {
         />
         
         <Toaster />
-      </DashboardLayout>
+    </DashboardLayout>
+  );
+}
+
+function App() {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <AppContent />
     </QueryClientProvider>
   );
 }

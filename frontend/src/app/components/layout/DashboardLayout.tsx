@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
 import { Sheet, SheetContent } from '../../components/ui/sheet';
+import { Task } from '../../../types';
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -11,9 +12,25 @@ interface DashboardLayoutProps {
   onNavigate?: (page: string) => void;
   selectedTag?: string | null;
   onTagSelect?: (tag: string | null) => void;
+  onSearch?: (query: string) => void;
+  searchResults?: Array<{ task: Task; score: number }>;
+  onTaskClick?: (task: Task) => void;
+  isSearching?: boolean;
 }
 
-export function DashboardLayout({ children, onAICreateClick, onNewTaskClick, activePage, onNavigate, selectedTag, onTagSelect }: DashboardLayoutProps) {
+export function DashboardLayout({ 
+  children, 
+  onAICreateClick, 
+  onNewTaskClick, 
+  activePage, 
+  onNavigate, 
+  selectedTag, 
+  onTagSelect,
+  onSearch,
+  searchResults,
+  onTaskClick,
+  isSearching
+}: DashboardLayoutProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   return (
@@ -50,6 +67,10 @@ export function DashboardLayout({ children, onAICreateClick, onNewTaskClick, act
           onMenuClick={() => setIsMobileMenuOpen(true)} 
           onAICreateClick={onAICreateClick}
           onNewTaskClick={onNewTaskClick}
+          onSearch={onSearch}
+          searchResults={searchResults}
+          onTaskClick={onTaskClick}
+          isSearching={isSearching}
         />
         <main className="flex-1 overflow-auto p-4 md:p-6">
           <div className="mx-auto max-w-7xl h-full">

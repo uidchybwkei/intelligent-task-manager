@@ -196,3 +196,47 @@ export const findSimilarTasks = async (request: FindSimilarTasksRequest): Promis
   
   return data.similar_tasks || [];
 };
+
+/**
+ * Semantic search tasks
+ */
+export interface SearchResult {
+  task_id: number;
+  score: number;
+}
+
+export interface SemanticSearchRequest {
+  query: string;
+  tasks: Task[];
+}
+
+export interface SemanticSearchResponse {
+  success: boolean;
+  results?: SearchResult[];
+  error?: string;
+}
+
+export const semanticSearch = async (request: SemanticSearchRequest): Promise<SearchResult[]> => {
+  const response = await fetch(`${AI_AGENT_BASE_URL}/api/semantic-search`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      query: request.query,
+      tasks: request.tasks,
+    }),
+  });
+  
+  if (!response.ok) {
+    throw new Error(`AI Agent request failed: ${response.status}`);
+  }
+  
+  const data: SemanticSearchResponse = await response.json();
+  
+  if (!data.success) {
+    throw new Error(data.error || 'Semantic search failed');
+  }
+  
+  return data.results || [];
+};
