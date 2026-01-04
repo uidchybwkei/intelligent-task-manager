@@ -5,5 +5,3 @@ spring:
   jpa:
     hibernate:
       ddl-auto: create-drop
-  flyway:
-    enabled: false

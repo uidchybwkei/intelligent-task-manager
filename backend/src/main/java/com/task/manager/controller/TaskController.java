@@ -14,6 +14,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+import java.util.Map;
+
 @RestController
 @RequestMapping("/api/tasks")
 @RequiredArgsConstructor
@@ -62,5 +65,28 @@ public class TaskController {
     @Operation(summary = "删除任务")
     public void deleteTask(@PathVariable Long id) {
         taskService.deleteTask(id);
+    }
+
+    @GetMapping("/tags")
+    @Operation(summary = "获取所有标签")
+    public List<String> getAllTags() {
+        return taskService.getAllTags();
+    }
+
+    @PostMapping("/tags")
+    @ResponseStatus(HttpStatus.CREATED)
+    @Operation(summary = "创建标签")
+    public void createTag(@RequestBody Map<String, String> payload) {
+        String name = payload.get("name");
+        if (name != null && !name.isBlank()) {
+            taskService.createTag(name.trim());
+        }
+    }
+
+    @DeleteMapping("/tags/{name}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @Operation(summary = "删除标签")
+    public void deleteTag(@PathVariable String name) {
+        taskService.deleteTag(name);
     }
 }

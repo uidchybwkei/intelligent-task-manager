@@ -7,6 +7,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.List;
+
 public interface TaskRepository extends JpaRepository<Task, Long> {
     
     @Query("SELECT DISTINCT t FROM Task t LEFT JOIN t.tags tag WHERE " +
@@ -19,4 +21,10 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
         @Param("tagName") String tag,
         Pageable pageable
     );
+
+    /**
+     * 获取所有使用过的标签（去重）
+     */
+    @Query("SELECT DISTINCT tag FROM Task t JOIN t.tags tag ORDER BY tag")
+    List<String> findAllDistinctTags();
 }

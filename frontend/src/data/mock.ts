@@ -1,0 +1,73 @@
+import { Task, Tag } from '../types';
+
+export const tags: Tag[] = [
+  { id: 't1', label: 'Design', color: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300' },
+  { id: 't2', label: 'Development', color: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300' },
+  { id: 't3', label: 'Meeting', color: 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300' },
+  { id: 't4', label: 'Marketing', color: 'bg-pink-100 text-pink-800 dark:bg-pink-900 dark:text-pink-300' },
+  { id: 't5', label: 'Research', color: 'bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-300' },
+];
+
+export const initialTasks: Task[] = [
+  {
+    id: '1',
+    title: 'Design System V2',
+    description: 'Finalize the color palette and typography for the new design system.',
+    status: 'in_progress',
+    priority: 'high',
+    tags: [tags[0]],
+    createdAt: new Date('2023-10-25T10:00:00'),
+    updatedAt: new Date('2023-10-26T14:00:00'),
+    dueDate: new Date('2023-11-01'),
+  },
+  {
+    id: '2',
+    title: 'Q4 Marketing Strategy',
+    description: 'Draft the initial plan for Q4 marketing campaigns including social media and email.',
+    status: 'pending',
+    priority: 'medium',
+    tags: [tags[3], tags[2]],
+    createdAt: new Date('2023-10-24T09:00:00'),
+    updatedAt: new Date('2023-10-24T09:00:00'),
+  },
+  {
+    id: '3',
+    title: 'Fix Navigation Bug',
+    description: 'Mobile menu doesn\'t close when clicking outside on iOS devices.',
+    status: 'pending',
+    priority: 'high',
+    tags: [tags[1]],
+    createdAt: new Date('2023-10-26T11:30:00'),
+    updatedAt: new Date('2023-10-26T11:30:00'),
+  },
+  {
+    id: '4',
+    title: 'User Interview Analysis',
+    description: 'Analyze the recordings from last week\'s user interviews and synthesize findings.',
+    status: 'completed',
+    priority: 'medium',
+    tags: [tags[4]],
+    createdAt: new Date('2023-10-20T13:00:00'),
+    updatedAt: new Date('2023-10-25T16:00:00'),
+  },
+  {
+    id: '5',
+    title: 'Update Documentation',
+    description: 'Update the API documentation to reflect the new endpoints.',
+    status: 'pending',
+    priority: 'low',
+    tags: [tags[1]],
+    createdAt: new Date('2023-10-27T08:00:00'),
+    updatedAt: new Date('2023-10-27T08:00:00'),
+  },
+  {
+    id: '6',
+    title: 'Team Sync',
+    description: 'Weekly team synchronization meeting.',
+    status: 'in_progress',
+    priority: 'medium',
+    tags: [tags[2]],
+    createdAt: new Date('2023-10-27T09:00:00'),
+    updatedAt: new Date('2023-10-27T09:00:00'),
+  },
+];
