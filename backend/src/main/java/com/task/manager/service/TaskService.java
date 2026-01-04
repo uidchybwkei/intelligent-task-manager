@@ -165,11 +165,7 @@ public class TaskService {
         // 从标签库删除
         tagRepository.deleteByName(name);
         
-        // 现在的逻辑是：即使用户删除了标签库的标签，已经使用了该标签的任务不会受到影响
-        // 如果要级联删除（从所有任务中移除该标签），需要额外的逻辑：
-        // List<Task> tasks = taskRepository.findByTagsContaining(name);
-        // ...
-        // 目前保持简单，只删除标签库定义。前端会负责检查是否有关联任务。
+
     }
 
     private void saveTagsToDictionary(Set<String> tags) {
