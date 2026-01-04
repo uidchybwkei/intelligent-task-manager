@@ -34,3 +34,6 @@ __pycache__/
 *.py[cod]
 *$py.class
 *.so
+
+# Local documentation (not tracked)
+CODE.md
