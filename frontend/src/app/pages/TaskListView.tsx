@@ -1,17 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Task, Status, Priority, TaskQueryParams } from '../../types';
+import { Task, TaskQueryParams } from '../../types';
 import { TaskRow } from '../components/tasks/TaskRow';
 import { Button } from '../components/ui/button';
 import { Skeleton } from '../components/ui/skeleton';
-import { ArrowUpDown, Filter, ChevronLeft, ChevronRight, RefreshCw, Sparkles } from 'lucide-react';
-import {
-  DropdownMenu,
-  DropdownMenuCheckboxItem,
-  DropdownMenuContent,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '../components/ui/dropdown-menu';
+import { ChevronLeft, ChevronRight, RefreshCw, Sparkles } from 'lucide-react';
 import { useTasks, useCompleteTask, useDeleteTask } from '../../hooks/useTasks';
 import { generateSummaryWithAI, findSimilarTasks, SimilarTask } from '../../api/tasks';
 import { Alert, AlertDescription } from '../components/ui/alert';
@@ -23,16 +15,13 @@ interface TaskListViewProps {
 }
 
 export function TaskListView({ onTaskClick, selectedTag }: TaskListViewProps) {
-  // 筛选、排序、分页状态
+  // 分页状态
   const [filters, setFilters] = useState<TaskQueryParams>({
     page: 0,
     size: 10,
     sort: 'createdAt,desc',
   });
   
-  // 本地 UI 筛选状态
-  const [statusFilter, setStatusFilter] = useState<Status | undefined>();
-  const [priorityFilter, setPriorityFilter] = useState<Priority | undefined>();
   
   // AI 摘要状态
   const [weeklySummary, setWeeklySummary] = useState<string | null>(null);
@@ -47,8 +36,6 @@ export function TaskListView({ onTaskClick, selectedTag }: TaskListViewProps) {
   // 获取任务列表
   const { data, isLoading, isError, error, refetch } = useTasks({
     ...filters,
-    status: statusFilter,
-    priority: priorityFilter,
     tag: selectedTag || undefined, // 如果有选中的 tag，传递给 API
   });
 
@@ -56,19 +43,6 @@ export function TaskListView({ onTaskClick, selectedTag }: TaskListViewProps) {
   const completeTaskMutation = useCompleteTask();
   const deleteTaskMutation = useDeleteTask();
 
-  const handleSort = (sortKey: string) => {
-    setFilters({ ...filters, sort: sortKey, page: 0 });
-  };
-
-  const handleStatusFilter = (status: Status | 'all') => {
-    setStatusFilter(status === 'all' ? undefined : status);
-    setFilters({ ...filters, page: 0 });
-  };
-
-  const handlePriorityFilter = (priority: Priority | 'all') => {
-    setPriorityFilter(priority === 'all' ? undefined : priority);
-    setFilters({ ...filters, page: 0 });
-  };
 
   const handlePageChange = (newPage: number) => {
     setFilters({ ...filters, page: newPage });
@@ -321,113 +295,6 @@ export function TaskListView({ onTaskClick, selectedTag }: TaskListViewProps) {
           {selectedTag ? `Tag: ${selectedTag}` : 'Task List'} 
           <span className="text-sm text-slate-500 ml-2">({data?.totalElements || 0})</span>
         </h2>
-        <div className="flex items-center gap-2">
-          {/* 排序 */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="h-8 gap-1">
-                <ArrowUpDown className="h-3.5 w-3.5" />
-                <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
-                  Sort
-                </span>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuLabel>Sort By</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuCheckboxItem 
-                checked={filters.sort === 'createdAt,desc'} 
-                onCheckedChange={() => handleSort('createdAt,desc')}
-              >
-                Newest First
-              </DropdownMenuCheckboxItem>
-              <DropdownMenuCheckboxItem 
-                checked={filters.sort === 'createdAt,asc'} 
-                onCheckedChange={() => handleSort('createdAt,asc')}
-              >
-                Oldest First
-              </DropdownMenuCheckboxItem>
-              <DropdownMenuCheckboxItem 
-                checked={filters.sort === 'priority,desc'} 
-                onCheckedChange={() => handleSort('priority,desc')}
-              >
-                Priority (High→Low)
-              </DropdownMenuCheckboxItem>
-              <DropdownMenuCheckboxItem 
-                checked={filters.sort === 'dueAt,asc'} 
-                onCheckedChange={() => handleSort('dueAt,asc')}
-              >
-                Due Date
-              </DropdownMenuCheckboxItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          {/* 筛选 */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="h-8 gap-1">
-                <Filter className="h-3.5 w-3.5" />
-                <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
-                  Filter
-                </span>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
-              <DropdownMenuLabel>Status</DropdownMenuLabel>
-              <DropdownMenuCheckboxItem 
-                checked={!statusFilter} 
-                onCheckedChange={() => handleStatusFilter('all')}
-              >
-                All
-              </DropdownMenuCheckboxItem>
-              <DropdownMenuCheckboxItem 
-                checked={statusFilter === 'PENDING'} 
-                onCheckedChange={() => handleStatusFilter('PENDING')}
-              >
-                Pending
-              </DropdownMenuCheckboxItem>
-              <DropdownMenuCheckboxItem 
-                checked={statusFilter === 'IN_PROGRESS'} 
-                onCheckedChange={() => handleStatusFilter('IN_PROGRESS')}
-              >
-                In Progress
-              </DropdownMenuCheckboxItem>
-              <DropdownMenuCheckboxItem 
-                checked={statusFilter === 'COMPLETED'} 
-                onCheckedChange={() => handleStatusFilter('COMPLETED')}
-              >
-                Completed
-              </DropdownMenuCheckboxItem>
-              
-              <DropdownMenuSeparator />
-              <DropdownMenuLabel>Priority</DropdownMenuLabel>
-              <DropdownMenuCheckboxItem 
-                checked={!priorityFilter} 
-                onCheckedChange={() => handlePriorityFilter('all')}
-              >
-                All
-              </DropdownMenuCheckboxItem>
-              <DropdownMenuCheckboxItem 
-                checked={priorityFilter === 'HIGH'} 
-                onCheckedChange={() => handlePriorityFilter('HIGH')}
-              >
-                High
-              </DropdownMenuCheckboxItem>
-              <DropdownMenuCheckboxItem 
-                checked={priorityFilter === 'MEDIUM'} 
-                onCheckedChange={() => handlePriorityFilter('MEDIUM')}
-              >
-                Medium
-              </DropdownMenuCheckboxItem>
-              <DropdownMenuCheckboxItem 
-                checked={priorityFilter === 'LOW'} 
-                onCheckedChange={() => handlePriorityFilter('LOW')}
-              >
-                Low
-              </DropdownMenuCheckboxItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
       </div>
 
       {/* 任务列表 */}
