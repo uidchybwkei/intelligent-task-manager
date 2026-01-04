@@ -17,7 +17,7 @@ AI / LLM
 - [X]  Task CRUD
 - [X]  AI: Natural language task creation (parse title/description/due/priority/tags)
 - [X]  AI: Tag suggestion
-- [X]  AI: Task breakdown / summarization / similar task detection / semantic search
+- [X]  AI: summarization / similar task detection / semantic search
 - [X]  Frontend UI with list/kanban views
 - [X]  Tag management system
 - [X]  OpenAPI/Swagger documentation
@@ -33,17 +33,17 @@ AI / LLM
 ### Configuration
 
 - Backend environment variables (copy from backend/env.example):
+
   - DB_URL: MySQL connection URL (e.g., jdbc:mysql://localhost:3306/taskdb)
   - DB_USER: MySQL username
   - DB_PASSWORD: MySQL password
-
 - AI Agent environment variables:
-  - DASHSCOPE_API_KEY: DashScope API key for Qwen AI models
 
+  - DASHSCOPE_API_KEY: DashScope API key for Qwen AI models
 - Frontend environment variables (optional, defaults to localhost):
+
   - VITE_API_BASE_URL: Backend API URL (default: http://localhost:8080)
   - VITE_AI_AGENT_URL: AI Agent API URL (default: http://localhost:8001)
-
 - AI calls are made directly from frontend to AI Agent service for simplicity
 
 ### Run
@@ -60,11 +60,12 @@ AI / LLM
 - Backend API: http://localhost:8080/swagger-ui.html (SpringDoc OpenAPI)
 - AI Agent API: http://localhost:8001/docs (FastAPI automatic docs)
 - Backend endpoints (http://localhost:8080):
+
   - GET/POST/PUT/DELETE /api/tasks - Task CRUD operations
   - GET /api/tasks?status=&priority=&tag=&sortBy=&sortDirection=&page=&size= - Filtered task list
   - GET/POST/DELETE /api/tasks/tags - Tag management
-
 - AI Agent endpoints (http://localhost:8001):
+
   - POST /api/parse-task - AI natural language task creation
   - POST /api/suggest-tags - AI tag suggestion
   - POST /api/find-similar-tasks - AI similar task detection
