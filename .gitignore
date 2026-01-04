@@ -28,3 +28,9 @@ backend/.settings/
 
 # Gradle/Maven wrapper caches (optional)
 **/.gradle/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
